@@ -48,17 +48,18 @@ cc.Class({
             default: null,
             type: cc.Prefab
         },
-        playerID: 0,
+        nowPlaying: 0,
         blockArray: [],
-        // rewrite this to be the 2-d Array! immediately!
+        // rewrite this to 2-d Array! immediately!
         blockMap: [],
         // should be written as (yIndex, xIndex)
         mapWidth: 8, // unit: blocks, should be a even number
-        mapHeight: 0 // unit: blocks
+        mapHeight: 0, // unit: blocks
+        haveCurling: false
     },
 
     setInputControlTouch: function () {
-        // initiate the touch control listeners 
+        // initiate the touch control listeners
         var launch = this.launch.getComponent('launch');
         this.node.on(cc.Node.EventType.TOUCH_START, function (event){
             var point = this.game.convertTouchToNodeSpace(event);
@@ -119,13 +120,13 @@ cc.Class({
         //               LOWER_RIGHT: 4, LOWER_LEFT: 8
         var return_val = 0;
         if(this.blockArray.contains([xIndex, yIndex + 1])) {
-            if(this.blockArray.contains([xIndex - 1, yIndex])) 
+            if(this.blockArray.contains([xIndex - 1, yIndex]))
                 return_val += 1;
             if(this.blockArray.contains([xIndex + 1, yIndex]))
                 return_val += 2;
         }
         if(this.blockArray.contains([xIndex, yIndex - 1])) {
-            if(this.blockArray.contains([xIndex - 1, yIndex])) 
+            if(this.blockArray.contains([xIndex - 1, yIndex]))
                 return_val += 8;
             if(this.blockArray.contains([xIndex + 1, yIndex]))
                 return_val += 4;
@@ -134,8 +135,8 @@ cc.Class({
         return return_val;
     },
 
-    spawnBloc: function(xIndex, yIndex, playerID = 1) {
-        // check and spawn other blocks 
+    spawnBloc: function(xIndex, yIndex, playerID = this.nowPlaying) {
+        // check and spawn other blocks
         // var blocksToSpawn = this.checkBlockOwnership(xIndex, yIndex);
         //     for(var i = 0; i < 4; i++) {
         //         if(blocksToSpawn == 0) break;
@@ -154,19 +155,19 @@ cc.Class({
                     continue;
                 // cc.log(dx + " " + dy);
                 if(dy == dx || dy == -dx)
-                    if(this.blockMap[yIndex + dy][xIndex] == playerID && 
+                    if(this.blockMap[yIndex + dy][xIndex] == playerID &&
                         this.blockMap[yIndex][xIndex + dx] == playerID)
                         this.spawnBlockByIndex(xIndex + dx, yIndex + dy);
                 if(dx == 0)
-                    if((this.blockMap[yIndex + dy][xIndex - 1] == playerID && 
+                    if((this.blockMap[yIndex + dy][xIndex - 1] == playerID &&
                         this.blockMap[yIndex][xIndex - 1] == playerID) ||
-                       (this.blockMap[yIndex + dy][xIndex + 1] == playerID && 
+                       (this.blockMap[yIndex + dy][xIndex + 1] == playerID &&
                         this.blockMap[yIndex][xIndex + dx + 1] == playerID))
                         this.spawnBlockByIndex(xIndex + dx, yIndex + dy);
                 if(dy == 0)
-                    if((this.blockMap[yIndex - 1][xIndex + dx] == playerID && 
+                    if((this.blockMap[yIndex - 1][xIndex + dx] == playerID &&
                         this.blockMap[yIndex - 1][xIndex] == playerID) ||
-                       (this.blockMap[yIndex + 1][xIndex + dx] == playerID && 
+                       (this.blockMap[yIndex + 1][xIndex + dx] == playerID &&
                         this.blockMap[yIndex + 1][xIndex] == playerID))
                         this.spawnBlockByIndex(xIndex + dx, yIndex + dy);
             }
@@ -175,7 +176,7 @@ cc.Class({
 
     ifEnd: function(yIndex) {
         var i;
-        for(i = 0; i < this.mapWidth; i++) 
+        for(i = 0; i < this.mapWidth; i++)
             if(this.blockMap[yIndex][i] == 0)
                 break;
         cc.log(i);
@@ -206,6 +207,12 @@ cc.Class({
         Curl.xRatio = -(3 * point.x) / Curl.Speed;
         Curl.yRatio = -(3 * point.y) / Curl.Speed;
         Curl.game = this;
+        this.haveCurling = true;
+        this.afterLaunch();
+    },
+
+    afterLaunch: function() {
+        this.nowPlaying = 3 - this.nowPlaying;
     },
 
     spawnBlock: function(point, curl) {
@@ -217,7 +224,7 @@ cc.Class({
         this.spawnBlockByIndex(xIndex + this.mapWidth / 2 - 1, yIndex - 1);
     },
 
-    spawnBlockByIndex: function(xIndex, yIndex, playerID = 1) {
+    spawnBlockByIndex: function(xIndex, yIndex, playerID = this.nowPlaying) {
         var blockPosition;
         var xCenteredIndex = xIndex + 1 - this.mapWidth / 2;
         var yCenteredIndex = yIndex + 1;
