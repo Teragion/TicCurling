@@ -14,12 +14,12 @@ cc.Class({
 
     properties: {
         launch: {
-            type: cc.Node,
-            default: null
+            default: null,
+            type: cc.Node
         },
         game: {
-            type: cc.Node,
-            default: null
+            default: null,
+            type: cc.Node
         },
         draw: {
             default: null
@@ -49,6 +49,7 @@ cc.Class({
             type: cc.Prefab
         },
         nowPlaying: 0,
+        // the player that is going to launch the next curling
         blockArray: [],
         // rewrite this to 2-d Array! immediately!
         blockMap: [],
@@ -113,11 +114,15 @@ cc.Class({
         return xIndex * 100 + yIndex;
     },
 
+    /**
+     * checks if nearby blocks are owned by the same player
+     *
+     * @param {number} xIndex x index of center block to be inspected.
+     * @param {number} yIndex y index of center block to be inspected.
+     * @return {number} return_val UPPER_LEFT: 1, UPPER_RIGHT: 2
+     *                             LOWER_RIGHT: 4, LOWER_LEFT: 8
+     */
     checkBlockOwnership: function(xIndex, yIndex) {
-        // checks if nearby blocks are owned by the same player
-        // NEED TO ADD ANOTHER PARAMETER (PLAYER) AND RESPECTIVE CODE
-        // return value: UPPER_LEFT: 1, UPPER_RIGHT: 2
-        //               LOWER_RIGHT: 4, LOWER_LEFT: 8
         var return_val = 0;
         if(this.blockArray.contains([xIndex, yIndex + 1])) {
             if(this.blockArray.contains([xIndex - 1, yIndex]))
@@ -135,17 +140,15 @@ cc.Class({
         return return_val;
     },
 
+    /**
+     * Checks if nearby 3*3 area have bloc to spawned, this function
+     * runs recursively
+     *
+     * @param {number} xIndex x index of center block to be inspected.
+     * @param {number} yIndex y index of center block to be inspected.
+     * @param {number} playerID player ID
+     */
     spawnBloc: function(xIndex, yIndex, playerID = this.nowPlaying) {
-        // check and spawn other blocks
-        // var blocksToSpawn = this.checkBlockOwnership(xIndex, yIndex);
-        //     for(var i = 0; i < 4; i++) {
-        //         if(blocksToSpawn == 0) break;
-        //         if(blocksToSpawn % 2 == 1) {
-        //             this.spawnBlockByIndex(xIndex + BLOCK_SEQ[i][0], yIndex + BLOCK_SEQ[i][1]);
-        //             blocksToSpawn -= 1;
-        //         }
-        //         blocksToSpawn /= 2;
-        //     }
         cc.log("checking");
         for(var dy = -1; dy < 2; dy++) {
             for(var dx = -1; dx < 2; dx++) {
@@ -156,25 +159,31 @@ cc.Class({
                 // cc.log(dx + " " + dy);
                 if(dy == dx || dy == -dx)
                     if(this.blockMap[yIndex + dy][xIndex] == playerID &&
-                        this.blockMap[yIndex][xIndex + dx] == playerID)
-                        this.spawnBlockByIndex(xIndex + dx, yIndex + dy);
+                            this.blockMap[yIndex][xIndex + dx] == playerID)
+                        this.spawnBlockByIndex(xIndex + dx, yIndex + dy, playerID, 'blocBlock');
                 if(dx == 0)
                     if((this.blockMap[yIndex + dy][xIndex - 1] == playerID &&
-                        this.blockMap[yIndex][xIndex - 1] == playerID) ||
-                       (this.blockMap[yIndex + dy][xIndex + 1] == playerID &&
-                        this.blockMap[yIndex][xIndex + dx + 1] == playerID))
-                        this.spawnBlockByIndex(xIndex + dx, yIndex + dy);
+                            this.blockMap[yIndex][xIndex - 1] == playerID) ||
+                           (this.blockMap[yIndex + dy][xIndex + 1] == playerID &&
+                            this.blockMap[yIndex][xIndex + dx + 1] == playerID))
+                        this.spawnBlockByIndex(xIndex + dx, yIndex + dy, playerID, 'blocBlock');
                 if(dy == 0)
                     if((this.blockMap[yIndex - 1][xIndex + dx] == playerID &&
-                        this.blockMap[yIndex - 1][xIndex] == playerID) ||
-                       (this.blockMap[yIndex + 1][xIndex + dx] == playerID &&
-                        this.blockMap[yIndex + 1][xIndex] == playerID))
-                        this.spawnBlockByIndex(xIndex + dx, yIndex + dy);
+                            this.blockMap[yIndex - 1][xIndex] == playerID) ||
+                           (this.blockMap[yIndex + 1][xIndex + dx] == playerID &&
+                            this.blockMap[yIndex + 1][xIndex] == playerID))
+                        this.spawnBlockByIndex(xIndex + dx, yIndex + dy, playerID, 'blocBlock');
             }
         }
     },
 
+    /**
+     * Checks if the row with indicated y index is filled
+     *
+     * @param {number} yIndex the y index need to be inspected
+     */
     ifEnd: function(yIndex) {
+        // checks if the game ends, should run every time a block is spawned
         var i;
         for(i = 0; i < this.mapWidth; i++)
             if(this.blockMap[yIndex][i] == 0)
@@ -199,6 +208,7 @@ cc.Class({
     // },
 
     spawnCurl: function(point) {
+        // spawn a curling
         var newCurl = cc.instantiate(this.curlPrefab);
         this.node.addChild(newCurl);
         newCurl.setPosition(cc.v2(0, -(667 - LAUNCH_POS_Y)));
@@ -206,25 +216,29 @@ cc.Class({
         Curl.Speed = Math.sqrt(point.x * point.x + point.y * point.y) * 3;
         Curl.xRatio = -(3 * point.x) / Curl.Speed;
         Curl.yRatio = -(3 * point.y) / Curl.Speed;
+        Curl.playerID = this.nowPlaying;
         Curl.game = this;
         this.haveCurling = true;
         this.afterLaunch();
     },
 
     afterLaunch: function() {
+        // change player in the next launch
         this.nowPlaying = 3 - this.nowPlaying;
+        // add code here to prevent launching multiple curling at the same time
     },
 
-    spawnBlock: function(point, curl) {
-        //deleting the existing curling
+    spawnBlock: function(point, curl, playerID = this.nowPlaying) {
+        // deleting the existing curling
         curl.destroy();
-        //spawn blocker
+        // spawn blocker
         var xIndex = Math.round((point.x + BLOCK_WIDTH / 2) / BLOCK_WIDTH);
         var yIndex = Math.round((point.y + BLOCK_WIDTH / 2) / BLOCK_WIDTH);
-        this.spawnBlockByIndex(xIndex + this.mapWidth / 2 - 1, yIndex - 1);
+        this.spawnBlockByIndex(xIndex + this.mapWidth / 2 - 1, yIndex - 1, playerID);
     },
 
-    spawnBlockByIndex: function(xIndex, yIndex, playerID = this.nowPlaying) {
+    spawnBlockByIndex: function(xIndex, yIndex, playerID = this.nowPlaying, blockType = 'newBlock') {
+        // function separated from spawnBlock
         var blockPosition;
         var xCenteredIndex = xIndex + 1 - this.mapWidth / 2;
         var yCenteredIndex = yIndex + 1;
@@ -235,6 +249,7 @@ cc.Class({
             var animation = cc.instantiate(this.animatedBrickPrefab);
             this.node.addChild(animation);
             animation.setPosition(blockPosition);
+            animation.blockType = blockType;
             var newBlock = cc.instantiate(this.brickPrefab);
             this.node.addChild(newBlock);
             newBlock.setPosition(blockPosition);
@@ -256,6 +271,8 @@ cc.Class({
     },
 
     spawnBorderVertical: function() {
+        // spawn vertical border
+        // group: borderGroup
         var oneSideDistance = this.mapWidth / 2 * BLOCK_WIDTH;
         cc.log(oneSideDistance);
         var borderLeft = cc.instantiate(this.borderVerticalPrefab);
@@ -267,6 +284,9 @@ cc.Class({
     },
 
     spawnBorderDown: function() {
+        // spawn horizontal border
+        // group: borderDownGroup
+        // collision with this border destroyes the curling if the curling comes from above
         var Distance = this.node.height / 2 - this.mapHeight * BLOCK_WIDTH - 5;
         var borderDown = cc.instantiate(this.borderHorizontalPrefab);
         this.node.addChild(borderDown);
@@ -275,24 +295,32 @@ cc.Class({
 
     // LIFE-CYCLE CALLBACKS:
 
-    onLoad () {
+    onLoad() {
+        // initiate touch control
         this.setInputControlTouch();
+
+        // initiate aim indicator
         this.draw = new cc.DrawNode();
         cc.Canvas.instance.node.parent._sgNode.addChild(this.draw);
+
+        // initiate collision manager
         var manager = cc.director.getCollisionManager();
         manager.enabled = true;
+
+        // initiate block map
         for(var i = 0; i < this.mapHeight; i++) {
             this.blockMap[i] = new Array(this.mapWidth);
             for(var j = 0; j < this.mapWidth; j++)
                 this.blockMap[i][j] = 0;
         }
-        // cc.log(this.blockMap);
+
+        // misc
         cc.view.enableAntiAlias(true);
         this.spawnBorderVertical();
         this.spawnBorderDown();
     },
 
-    start () {
+    start() {
 
     },
 

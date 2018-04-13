@@ -10,3 +10,5 @@ GAME ON!
 Mechanics of changing player  
 Scoring part  
 Better animation and UI
+
+##### Developed with Cocos Creator

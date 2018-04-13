@@ -52,24 +52,27 @@ cc.Class({
 
     // LIFE-CYCLE CALLBACKS:
 
-    onLoad () 
+    onLoad()
     {
 
     },
 
-    start () {
+    start() {
 
     },
 
-    update (dt) {
+    update(dt) {
         if (Math.abs(this.Speed) > this.deaccel * dt) {
             this.Speed = (Math.abs(this.Speed) - this.deaccel * dt) * Math.abs(this.Speed) / this.Speed;
         } else {
             this.Speed = 0;
-            this.game.spawnBlock(this.node.position, this.node);
+            this.game.spawnBlock(this.node.position, this.node, this.playerID);
         }
         this.node.x += this.Speed * dt * this.xRatio;
         this.node.y += this.Speed * dt * this.yRatio;
         this.inCollide = false;
+
+        // should add a mechanism that checks if the curling is outside the canvas
+        // wait... is that possible?
     },
 });
